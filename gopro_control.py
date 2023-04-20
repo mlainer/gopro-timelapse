@@ -16,6 +16,7 @@ from PIL import Image
 from PIL import ImageFont
 from PIL import ImageDraw
 import os
+import netifaces as ni
 
 font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 72)
 fontsmall = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 36)
@@ -90,6 +91,7 @@ while signal_handler.can_run():
         try:
             with WiredGoPro(serial='C3471325923859') as gopro:
                 gopro.http_command.set_keep_alive()
+                ip = ni.ifaddresses('usb0')[ni.AF_INET][0]['addr']
                 gopro.http_command.load_preset_group(group=Params.PresetGroup.PHOTO)
                 gopro.http_setting.max_lens_mode.set(Params.MaxLensMode(1))
                 gopro.http_setting.photo_horizon_leveling.set(Params.HorizonLeveling(2))
@@ -122,7 +124,7 @@ while signal_handler.can_run():
                     img.save(lfile)
 
                     #print('Delete ', f)
-                    url = "http://172.28.159.51:8080/gp/gpControl/command/storage/delete?p=" + "/100GOPRO/" + f
+                    url = "http://"+ip+":8080/gp/gpControl/command/storage/delete?p=" + "/100GOPRO/" + f
                     with requests.get(url) as request:
                         request.raise_for_status()
 
@@ -133,8 +135,7 @@ while signal_handler.can_run():
             pass
 
     else:
-        saveday = '20230419' 
-        lpath = basepath+'day/20230419/'
+        lpath = basepath+'day/'+saveday+'/'
         #During night process timelapse if not exist after sunset
         if os.path.isfile(basepath+'timelapse/timelapse_'+saveday+'.mp4'):
             time.sleep(10)
