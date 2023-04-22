@@ -16,14 +16,13 @@ from PIL import Image
 from PIL import ImageFont
 from PIL import ImageDraw
 import os
-
-#serial number of GoPro
-sn='C3471325923859'
-ip='172.28.159.51'
+import netifaces as ni
 
 font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 72)
 fontsmall = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 36)
 fontcolor = (238,161,6)
+
+sn = 
 
 def utc_to_local(utc_dt):
     return utc_dt.replace(tzinfo=timezone.utc).astimezone(tz=None)
@@ -93,9 +92,9 @@ while signal_handler.can_run():
         #print('Start capturing daytime photos.')
         try:
             #serial='C3471325923859'
-            with WiredGoPro(serial=sn) as gopro:
-                gopro.http_command.wired_usb_control(control=Params.Toggle.ENABLE)
+            with WiredGoPro() as gopro:
                 gopro.http_command.set_keep_alive()
+                ip = ni.ifaddresses('usb0')[ni.AF_INET][0]['addr']
                 gopro.http_command.load_preset_group(group=Params.PresetGroup.PHOTO)
                 gopro.http_setting.max_lens_mode.set(Params.MaxLensMode(1))
                 gopro.http_setting.photo_horizon_leveling.set(Params.HorizonLeveling(2))
@@ -107,7 +106,7 @@ while signal_handler.can_run():
                 # Download and delete all of the files from the camera
                 media_list = [x["n"] for x in gopro.http_command.get_media_list().flatten]
                 for f in media_list:
-                    #print('Download ', f)
+     'C3471325923859'               #print('Download ', f)
                     epoch_file = gopro.http_command.get_media_info(file=f).data['cre']
                     utc_file = datetime.datetime.fromtimestamp(int(epoch_file))
                     tstr = utc_file.strftime('%Y%m%d-%H%M%S')
@@ -132,7 +131,7 @@ while signal_handler.can_run():
                     with requests.get(url) as request:
                         request.raise_for_status()
 
-            time.sleep(7) #Processing break
+            time.sleep(4) #Processing break
 
         except:
             time.sleep(3)
@@ -150,11 +149,9 @@ while signal_handler.can_run():
 
         #print("Sleeping")
         try:
-            with WiredGoPro(serial=sn) as gopro:
-                gopro.http_command.wired_usb_control(control=Params.Toggle.ENABLE)
-                gopro.http_command.set_keep_alive()
+            with WiredGoPro() as gopro:
                 gopro.http_setting.auto_off.set(Params.AutoOff(0)) #Never do auto off the camera
-                
+                gopro.http_command.set_keep_alive()
                 time.sleep(30)
         except:
             time.sleep(30)

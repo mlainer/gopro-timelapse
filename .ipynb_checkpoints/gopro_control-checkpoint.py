@@ -16,6 +16,7 @@ from PIL import Image
 from PIL import ImageFont
 from PIL import ImageDraw
 import os
+import netifaces as ni
 
 #serial number of GoPro
 sn='C3471325923859'
