@@ -8,6 +8,7 @@ from datetime import timezone
 from astral.sun import sun
 from astral import LocationInfo
 import pytz
+import pickle
 import json
 import re
 import signal
@@ -15,7 +16,6 @@ import subprocess
 from PIL import Image
 from PIL import ImageFont
 from PIL import ImageDraw
-import os
 
 #serial number of GoPro
 sn='C3471325923859'
@@ -89,12 +89,18 @@ while signal_handler.can_run():
     sunset = sunset.replace(tzinfo=None)
 
     if sunrise <= date <= sunset:
-        saveday = date.strftime('%Y%m%d')
+        
+        if os.path.isfile(basepath+'saveday.pkl'):
+            pass
+        else:
+            saveday = date.strftime('%Y%m%d')
+            with open(basepath+'saveday.pkl','wb') as s:
+                pickle.dump(saveday, s)
+
         #print('Start capturing daytime photos.')
         try:
-            #serial='C3471325923859'
             with WiredGoPro(serial=sn) as gopro:
-                gopro.http_command.wired_usb_control(control=Params.Toggle.ENABLE)
+                time.sleep(2)
                 gopro.http_command.set_keep_alive()
                 gopro.http_command.load_preset_group(group=Params.PresetGroup.PHOTO)
                 gopro.http_setting.max_lens_mode.set(Params.MaxLensMode(1))
@@ -116,46 +122,51 @@ while signal_handler.can_run():
                         os.makedirs(lpath)
                     lfile = lpath+tstr+'.JPG'
                     gopro.http_command.download_file(camera_file=f, local_file=lfile)
-                    filename=tstr+'.JPG'
-                    splitup = filename.split("-")
-                    date = splitup[0]
-                    t = splitup[1][0:4]
-                    tformatted = t[0:2] + ":" + t[2:4]
-                    img = Image.open(lfile)
-                    draw = ImageDraw.Draw(img)
-                    draw.text((img.width-220,img.height-150), date, fontcolor, font=fontsmall)
-                    draw.text((img.width-220,img.height-120), tformatted, fontcolor, font=font)
-                    img.save(lfile)
+                    
+                    #filename=tstr+'.JPG'
+                    #splitup = filename.split("-")
+                    #date = splitup[0]
+                    #t = splitup[1][0:4]
+                    #tformatted = t[0:2] + ":" + t[2:4]
+                    #img = Image.open(lfile)
+                    #exif = img.info['exif']
+                    #draw = ImageDraw.Draw(img)
+                    #draw.text((img.width-220,img.height-150), date, fontcolor, font=fontsmall)
+                    #draw.text((img.width-220,img.height-120), tformatted, fontcolor, font=font)
+                    #img.save(lfile, quality=95, exif=exif)
 
                     #print('Delete ', f)
                     url = "http://"+ip+":8080/gp/gpControl/command/storage/delete?p=" + "/100GOPRO/" + f
                     with requests.get(url) as request:
                         request.raise_for_status()
 
-            time.sleep(7) #Processing break
+            time.sleep(3) #Processing break
 
         except:
-            time.sleep(3)
             pass
 
     else:
-        lpath = basepath+'day/'+saveday+'/'
-        #During night process timelapse if not exist after sunset
-        if os.path.isfile(basepath+'timelapse/timelapse_'+saveday+'.mp4'):
-            time.sleep(10)
-        else:
-            #Timelapse generation
-            command = "ffmpeg -framerate 16 -pattern_type glob -i '"+lpath+'*.JPG'+"' -s:v 3504x2624 -c:v libx264 -crf 17 -pix_fmt yuv420p "+basepath+"timelapse/timelapse_"+saveday+".mp4"
-            subprocess.call(command,shell=True)
+        if os.path.isfile(basepath+'saveday.pkl'):
+            with open(basepath+'saveday.pkl','rb') as s:
+                saveday = pickle.load(s)
 
-        #print("Sleeping")
-        try:
-            with WiredGoPro(serial=sn) as gopro:
-                gopro.http_command.wired_usb_control(control=Params.Toggle.ENABLE)
-                gopro.http_command.set_keep_alive()
-                gopro.http_setting.auto_off.set(Params.AutoOff(0)) #Never do auto off the camera
-                
-                time.sleep(30)
-        except:
-            time.sleep(30)
-            pass
+            lpath = basepath+'day/'+saveday+'/'
+            #During night process timelapse if not exist after sunset
+            if os.path.isfile(basepath+'timelapse/timelapse_'+saveday+'.mp4'):
+                time.sleep(10)
+            else:
+                #Timelapse generation
+                command = "ffmpeg -framerate 16 -pattern_type glob -i '"+lpath+'*.JPG'+"' -s:v 3504x2624 -c:v libx264 -crf 17 -pix_fmt yuv420p "+basepath+"timelapse/timelapse_"+saveday+".mp4"
+                subprocess.call(command,shell=True)
+
+                #Delete saveday:
+                os.remove(basepath+'saveday.pkl')
+
+        else:
+            #print("Keep alive")
+            try:
+                with WiredGoPro(serial=sn) as gopro:
+                    gopro.http_command.set_keep_alive()
+                    time.sleep(10)
+            except:
+                pass
